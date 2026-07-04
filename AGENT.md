@@ -1,6 +1,8 @@
 # AGENT.md
 
 > AI 开发助手在接手 wo-bot 任何子项目开发前必须阅读本文档。
+>
+> **注意**：文档中使用 `<JETSON_IP>`、`<JETSON_USER>`、`<SERVICE_NAME>` 等占位符表示因环境而异的配置项，请根据实际环境替换。
 
 ## 一、项目上下文
 
@@ -43,8 +45,8 @@
 关键规则：
 - 所有新功能通过 `src/modules/extension/` 目录下的模块实现
 - 通信层（WebSocket/WebRTC）在 `src/core/` 中，模块通过事件总线解耦
-- 部署到 Jetson 用 `scripts/deploy.sh`，Jetson IP: `192.168.1.47`，用户: `trae`
-- 服务重启用 `sudo systemctl restart wo-bot`（需要 root 密码）
+- 部署到 Jetson 用 `scripts/deploy.sh`
+- 服务重启用 `sudo systemctl restart <SERVICE_NAME>`（需要 root 密码）
 - Python 3.10+，严格 asyncio 异步，禁止同步阻塞调用
 - 机器人外设操作必须有安全检查和错误恢复
 
@@ -104,7 +106,7 @@ bash scripts/deploy.sh
 
 部署后必须重启服务：
 ```bash
-ssh trae@192.168.1.47 "sudo systemctl restart wo-bot"
+ssh <JETSON_USER>@<JETSON_IP> "sudo systemctl restart <SERVICE_NAME>"
 ```
 
 ### 前端生效
@@ -118,7 +120,7 @@ bash scripts/deploy.sh
 ### 查看 Jetson 日志
 
 ```bash
-ssh trae@192.168.1.47 "journalctl -u wo-bot -f --no-pager"
+ssh <JETSON_USER>@<JETSON_IP> "journalctl -u <SERVICE_NAME> -f --no-pager"
 ```
 
 ## 六、代码规范
@@ -152,7 +154,7 @@ gh issue create --repo al96169/wo-bot-control --title "xxx" --body "xxx"
 cd wo-bot-control && bash scripts/deploy.sh
 
 # 重启机器人服务
-ssh trae@192.168.1.47 "sudo systemctl restart wo-bot"
+ssh <JETSON_USER>@<JETSON_IP> "sudo systemctl restart <SERVICE_NAME>"
 
 # 部署前端
 cd wo-bot-web-debug && bash scripts/deploy.sh
