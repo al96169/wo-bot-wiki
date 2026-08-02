@@ -255,6 +255,62 @@ Answer SDP 特点：
 
 subscribe 后每秒推送，格式同上。WebRTC DataChannel 也会收到相同消息。
 
+#### get_peripheral_history — 查询传感器历史数据（R00045）
+
+```json
+// 客户端 → 服务端
+{
+  "type": "get_peripheral_history",
+  "data": {
+    "slots": ["dht11", "light"],
+    "range": "1h",
+    "from_ts": 1699999999,
+    "to_ts": 1700000000
+  }
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| slots | string[] | 是 | 传感器槽位名称列表 |
+| range | string | 否 | 时间范围：1h, 6h, 24h, 7d（默认 1h） |
+| from_ts | number | 否 | 起始 Unix 时间戳，与 range 二选一 |
+| to_ts | number | 否 | 结束 Unix 时间戳，与 range 二选一 |
+
+#### peripheral_history — 传感器历史数据响应
+
+```json
+// 服务端 → 客户端
+{
+  "type": "peripheral_history",
+  "data": {
+    "data": {
+      "dht11": [
+        { "ts": 1699999999, "temperature": 25.5, "humidity": 60.2 },
+        { "ts": 1699999999, "temperature": 25.6, "humidity": 60.0 }
+      ],
+      "light": [
+        { "ts": 1699999999, "value": 120 },
+        { "ts": 1699999999, "value": 118 }
+      ]
+    },
+    "slots_metadata": {
+      "dht11": { "unit": "°C/%" },
+      "light": { "unit": "lux" }
+    }
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| data | object | 以 slot_name 为 key，值为时间序列数据点数组 |
+| data.{slot}.ts | number | Unix 时间戳（秒） |
+| data.{slot}.temperature | number | 温度（复合传感器子字段，如 DHT11） |
+| data.{slot}.humidity | number | 湿度（复合传感器子字段，如 DHT11） |
+| data.{slot}.value | number | 标量传感器数值 |
+| slots_metadata | object | 槽位元数据（单位等） |
+
 ---
 
 ### 4.4 运动控制
