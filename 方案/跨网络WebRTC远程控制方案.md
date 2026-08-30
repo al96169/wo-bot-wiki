@@ -127,9 +127,9 @@ ws.on('message', (msg) => {
 - 连接 WSS 时 URL 带 `token=<JWT>`
 
 **机器人侧**：
-- 预共享密钥 `ROBOT_SECRET`（云服务器环境变量）
-- 连接时带 `role=robot&deviceId=<ID>&signature=<HMAC>`
-- 服务端用相同密钥重新计算 HMAC 比对
+- 设备独立 secret（`core/device_secret.py`，`.device_secret` 文件优先）
+- 连接时带 `role=robot&device_id=<ID>&deviceSecretHash=<H>`
+- 服务端用 account 存储的 secret-hash 校验，保留旧 HMAC 兼容
 
 详见 [第七节：安全性](#七安全性)。
 
@@ -340,7 +340,7 @@ class SignalClient:
 | **传输加密** | TLS/WSS | Nginx + Let's Encrypt |
 | **媒体加密** | DTLS | WebRTC 协议自带，零配置 |
 | **用户认证** | JWT（7天有效期） | 邮箱 + 验证码登录 |
-| **机器人认证** | HMAC-SHA256 预共享密钥 | `ROBOT_SECRET` 环境变量 |
+| **机器人认证** | 设备独立 secret + deviceSecretHash | `.device_secret` 文件（哈希上报，旧 HMAC 兼容） |
 | **设备归属** | userId ↔ deviceId 绑定 | 服务端数据库 |
 | **TURN 防滥用** | 24h 短期 HMAC 凭证 | coturn `static-auth-secret` |
 | **速率限制** | fail2ban + Nginx limit_req | 防暴力破解 |
