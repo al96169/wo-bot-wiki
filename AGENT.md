@@ -81,6 +81,22 @@ SUDO_PASS='<密码>' bash /opt/wobot/scripts/healthcheck.sh --with-webrtc
 
 ## 三、子项目开发前必读
 
+### 仓库结构（含账号级默认文件）
+
+除下列子仓库外，账号下还有一个特殊仓库 **`al96169/.github`**：
+
+- 它存放 **账号级默认社区健康文件**（`CONTRIBUTING.md`、`SECURITY.md`、
+  `CODE_OF_CONDUCT.md`、`.github/ISSUE_TEMPLATE/`、`.github/PULL_REQUEST_TEMPLATE.md`），
+  GitHub 会把它作为**所有未自带同名文件**的仓库的默认值。
+- **修改它会影响账号下全部仓库**（包括与本项目无关的其它项目），因此其中的内容
+  写成**通用**措辞；wo-bot 专属的开发规范（如 Python 3.7 约束）放在本文件里，不要塞进去。
+- 路径有硬性要求，放错会**静默不生效**：根目录（CONTRIBUTING/SECURITY/CODE_OF_CONDUCT）、
+  `.github/ISSUE_TEMPLATE/`（Issue 模板与 config.yml）、`.github/PULL_REQUEST_TEMPLATE.md`。
+- **默认 LICENSE 不被支持**，LICENSE 必须逐仓库添加。
+- 模板里**不要设 labels** —— 所设标签必须在所有目标仓库中存在，否则提交报错。
+
+本地对应克隆目录：`../.github`（与仓库同名）。
+
 ### wo-bot-control（机器人端）
 
 必读文档（按顺序）：
