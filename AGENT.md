@@ -4,6 +4,52 @@
 >
 > **注意**：文档中使用 `<JETSON_IP>`、`<JETSON_USER>`、`<SERVICE_NAME>` 等占位符表示因环境而异的配置项，请根据实际环境替换。
 
+## 零、接手第一步（强制）
+
+**接手后第一条命令**（在机器人上执行，脚本只读、不改动任何东西）：
+
+```bash
+SUDO_PASS='<密码>' bash /opt/wobot/scripts/healthcheck.sh --with-webrtc
+```
+
+一次性报告：磁盘、服务自启、**L4T 版本一致性**、apt/dpkg 元数据完整性、摄像头与 Argus、
+音频、venv/aiortc、端口、绑定客户端数、WebRTC DTLS 回环。
+**先看汇总：有 FAIL 就先修 FAIL，再谈别的。**
+
+**为什么强制**：本项目的故障几乎不来自代码本身，而来自**机器人上积累的隐性状态**
+——半升级的 L4T、写满的磁盘、被改写的依赖、未自启的 sshd、损坏的 apt 索引。
+不先巡检就动手，就会重复踩已经踩过的坑（历史上每次 Agent 接手都发生过，见下表）。
+
+### 已知地雷（每一个都真实发生过）
+
+| 地雷 | 症状 | 防法 / 现状 |
+|---|---|---|
+| **L4T 半升级**（内核对不上摄像头用户态） | CSI **绿屏**、`nvargus-daemon` SIGILL/SIGBUS、`SCF addSourceByIndex failed` | 装 L4T 包必须**整套对齐**；healthcheck 第 3 项会报 |
+| **磁盘写满** | apt 索引损坏、**dpkg 元数据被写成全 NUL**、GStreamer 插件 SIGILL | 保持 >15% 空闲；healthcheck 第 1 项 |
+| `deploy.sh` 删运行时状态 | 绑定/配置/红外码全丢 | 已修（保留 venv/config/data/logs）；**但跑任何部署脚本前先读它做什么** |
+| aiortc 被错误补丁改写 | `WebRTC negotiation failed: OpenSSL call failed` | 补丁已删并加自测；healthcheck 会校验断言未被改写 |
+| sshd 未设自启 | 重启后彻底失联（只能物理接触） | healthcheck 第 2 项；`systemctl enable ssh` |
+| GStreamer 注册缓存损坏 | `gst-inspect` SIGILL/SIGBUS → 摄像头/音频全挂 | 删 `~/.cache/gstreamer-1.0` 后重建 |
+| 前端 WebRTC 无自愈 | 摄像头**白屏**（占位层盖住） | 已加 `syncVideoStreams` + `ensureVideoLink` 自愈 |
+| **USB 摄像头重枚举** | 画面**卡在最后一帧**（服务端已停帧，前端无提示） | 驱动 oops 后节点会从 `video1` 漂到 `video2`；已加 `_resolve_device_path()` 自动跟随；healthcheck 第 5 项检测漂移节点 |
+| 未经核实的"修复" | 服务崩溃循环、停机数分钟 | 见下方改动纪律 |
+
+### 改动纪律
+
+- **不要凭"应该是这样"打补丁**。本项目有过一次因未验证补丁语义（`hasattr` 守卫写反）导致
+  服务崩溃循环、停机约 4 分钟的记录。改之前先**验证函数真实返回值**。
+- **同一类操作连续失败 2 次就停下来提替代方案**，不要反复重试。
+- **动系统（装包 / 改内核 / 改权限）前先备份并告知用户**。
+  `/var/lib/dpkg/info`、`config/`、`data/` 都是高价值状态。
+- **自己引入的副作用要主动交代**（例如为复现而新增的绑定客户端、留下的备份文件）。
+- **只读优先**：能用只读命令看清的，就不要先写。
+- **测试要覆盖「调用点」，而不只是被测函数本身**。本项目出现过：辅助方法定义在 A 类、
+  却从 B 类调用，`AttributeError` 直接把两个摄像头全部打挂 —— 而单测只测了辅助函数本身，
+  **全绿通过**，部署时的 DTLS 自检也照过。凡"新增方法并从别处调用"，
+  都必须有一条**真正跑到调用点**的测试（必要时把整个方法跑一遍，硬件依赖用 mock 挡掉）。
+- **部署后用真实路径验证一次**，不要只核对文件 md5 就宣布完成。
+  md5 一致只能证明"代码传过去了"，不能证明"这条路能跑"。
+
 ## 一、项目上下文
 
 阅读 [项目总览.md](项目总览.md) 了解：
@@ -96,6 +142,24 @@ JSON header 字段：
 - `rate` (phone mode): `48000`
 
 ## 五、部署与测试
+
+### 部署前
+
+`scripts/deploy.sh` **已内置**这一步：它会在停服务之前自动跑一次巡检并打印结果
+（只读、失败不阻断），因此"是不是这次部署弄坏的"一眼可判。
+
+需要单独看时：
+
+```bash
+SUDO_PASS='<密码>' bash /opt/wobot/scripts/healthcheck.sh --with-webrtc
+```
+
+### L4T / 系统包升级（高风险）
+
+装任何 `nvidia-l4t-*` 包时必须**整套对齐**：内核/设备树与摄像头/多媒体用户态
+**版本不一致会让 Argus 失效、CSI 摄像头变绿屏**（详见
+[踩坑记录/L4T半升级导致CSI绿屏与Argus崩溃.md](踩坑记录/L4T半升级导致CSI绿屏与Argus崩溃.md)）。
+升级后必须重启，并用巡检第 3 项确认关键包版本一致。
 
 ### 部署到 Jetson
 
